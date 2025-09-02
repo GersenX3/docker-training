@@ -1,27 +1,163 @@
-# docker run --network=my-network -p 4000:4000 \\
-# -e REACT_APP_PROFILE_API_HOST=http://profile-management \\
-# -e REACT_APP_PRODUCT_API_HOST=http://product-catalog \\
-# -e REACT_APP_INVENTORY_API_HOST=http://product-inventory \\
-# -e REACT_APP_ORDER_API_HOST=http://order-management \\
-# -e REACT_APP_SHIPPING_API_HOST=http://shipping-and-handling \\
-# -e REACT_APP_CONTACT_API_HOST=http://contact-support-team \\
-# --name ecommerce-ui rslim087/ecommerce-ui
+version: '3' 
+services: 
+  ecommerce-ui: # port 4000 
+    image: gersenx3/ecommerce-ui:2.0.0 
+    container_name: ecommerce-ui 
+    ports: 
+      - "4000:4000" 
+    depends_on: 
+      - profile-management 
+      - product-catalog 
+      - product-inventory 
+      - order_management 
+      - shipping-and-handling 
+      - contact-support-team 
+    environment: 
+      REACT_APP_PROFILE_API_HOST: http://profile-management 
+      REACT_APP_PRODUCT_API_HOST: http://product-catalog 
+      REACT_APP_INVENTORY_API_HOST: http://product-inventory 
+      REACT_APP_ORDER_API_HOST: http://order_management 
+      REACT_APP_SHIPPING_API_HOST: http://shipping-and-handling 
+      REACT_APP_CONTACT_API_HOST: http://contact-support-team 
+      
+  contact-support-team: # port 8000 
+    image: gersenx3/contact-support-team:2.0.0 
+    container_name: contact-support-team 
+    ports: 
+    - "8000:8000" 
+    depends_on: 
+    - mongodb_contact_support_data 
+    environment: 
+      MONGODB_HOST: mongodb_contact_support_data 
+      MONGODB_PORT: 27017 
+      MONGODB_DATABASE: contact_support_db 
+    
+  mongodb_contact_support_data: # port 27017 
+    image: mongo:latest 
+    container_name: mongodb_contact_support_data 
+    volumes: 
+    - mongodb_contact_support_data:/data/db 
 
-# docker run -p 8080:8080 -e MONGO_URI=<mongo_uri> shipping-and-handling
+  
+  shipping-and-handling: # port 8080 
+    image: gersenx3/shipping-and-handling:2.0.0 
+    container_name: shipping-and-handling 
+    ports: 
+      - "8080:8080" 
+    depends_on: 
+      - mongodb_shipping_handling_data 
+    environment: 
+      MONGO_URI: mongodb://mongodb_shipping_handling_data:27017
+  
+  mongodb_shipping_handling_data: # port 27018 
+    image: mongo:latest 
+    container_name: mongodb_shipping_handling_data 
+    volumes: 
+    - mongodb_shipping_handling_data:/data/db 
 
-# docker run -p 3003:3003 -e MYSQL_HOST=<mysql_host> -e MYSQL_PORT=<mysql_port> -e MYSQL_USER=<mysql_user> -e MYSQL_PASSWORD=<mysql_password> -e MYSQL_DATABASE=<mysql_database> authentication-microservice
+  
+  product-catalog: # port 3001 
+    image: gersenx3/product-catalog:2.0.0 
+    container_name: product-catalog 
+    ports: 
+      - "3001:3001" 
+    depends_on: 
+      - mongodb_product_catalog_data 
+    environment: 
+      MONGODB_HOST: mongodb_product_catalog_data 
+      MONGODB_PORT: 27017 
+      MONGODB_DATABASE: product_catalog_db 
+  
+  mongodb_product_catalog_data: # port 27019 
+    image: mongo:latest 
+    container_name: mongodb_product_catalog_data 
+    volumes: 
+      - mongodb_product_catalog_data:/data/db 
 
-# docker run -p 3002:3002 -e POSTGRES_HOST=<postgres_host> -e POSTGRES_PORT=<postgres_port> -e POSTGRES_DB=<postgres_db> -e POSTGRES_USER=<postgres_user> -e POSTGRES_PASSWORD=<postgres_password> product-inventory-microservice
+  
+  order_management: # port 9090 
+    image: gersenx3/order-management:2.0.0 
+    container_name: order_management 
+    ports: 
+      - "9090:9090" 
+    depends_on: 
+      - mongodb_order_management_data 
+      - product-inventory 
+      - product-catalog 
+      - shipping-and-handling 
+    environment: 
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb_order_management_data:27017/order_management 
+      SPRING_DATA_MONGODB_DATABASE: mongodb_order_management_data #DUDAAAAA
+      PRODUCT_INVENTORY_API_HOST: http://product-inventory 
+      PRODUCT_CATALOG_API_HOST: http://product-catalog 
+      SHIPPING_HANDLING_API_HOST: http://shipping-and-handling 
+  
+  mongodb_order_management_data: # port 27020 
+    image: mongo:latest 
+    container_name: mongodb_order_management_data 
+    volumes: 
+    - mongodb_order_management_data:/data/db 
+  
+  product-inventory: # port 3002 
+    image: gersenx3/product-inventory:2.0.0 
+    container_name: product-inventory 
+    ports: 
+      - "3002:3002" 
+    depends_on: 
+      - postgres_product_inventory 
+    environment: 
+      POSTGRES_HOST: postgres_product_inventory 
+      POSTGRES_PORT: 5432 
+      POSTGRES_DB: product_inventory_db 
+      POSTGRES_USER: inventory_user 
+      POSTGRES_PASSWORD: inventory_password 
+  
+  postgres_product_inventory: #port 5432 
+    image: postgres:latest 
+    container_name: postgres_product_inventory 
+    depends_on: 
+    - mysql_authentication 
+    environment: 
+      POSTGRES_DB: product_inventory_db 
+      POSTGRES_USER: inventory_user 
+      POSTGRES_PASSWORD: inventory_password 
+    volumes: 
+      - postgres_product_inventory_data:/var/lib/postgresql/data 
+  
+  profile-management: 
+    image: gersenx3/profile-management:2.0.0 
+    container_name: profile-management 
+    ports: 
+      - "3003:3003" 
+    depends_on: 
+      - mysql_authentication 
+    environment: 
+      MYSQL_HOST: mysql_authentication 
+      MYSQL_PORT: 3306 
+      MYSQL_USER: auth_user 
+      MYSQL_PASSWORD: auth_password 
+      MYSQL_DATABASE: authentication_db 
+  
+  mysql_authentication: # port 3306 
+    image: mysql:8.0 
+    container_name: mysql_authentication 
+    environment: 
+      MYSQL_DATABASE: authentication_db 
+      MYSQL_USER: auth_user 
+      MYSQL_PASSWORD: auth_password 
+      MYSQL_ROOT_PASSWORD: root_password 
+    volumes: 
+      - mysql_authentication_data:/var/lib/mysql 
+    ports: 
+      - "3306:3306" 
 
-# docker run -p 8000:8000 -e MONGODB_HOST=<mongo_host> -e MONGODB_PORT=<mongo_port> -e MONGODB_DATABASE=<mongo_database> contact-support-microservice
-
-# docker run -p 3001:3001 -e MONGODB_HOST=<mongo_host> -e MONGODB_PORT=<mongo_port> -e MONGODB_DATABASE=<mongo_database> product-catalog-microservice
-
-# docker run --network my-network \
-#   -e PRODUCT_INVENTORY_API_HOST=http://product-inventory \
-#   -e PRODUCT_CATALOG_API_HOST=http://product-catalog \
-#   -e SHIPPING_HANDLING_API_HOST=http://shipping-and-handling \
-#   -e SPRING_DATA_MONGODB_URI=mongodb://host:27017/name \
-#   -e SPRING_DATA_MONGODB_DATABASE=order_management \
-#   -p 9090:9090 --name order-management rslim087/order-management
+volumes: 
+  mongodb_product_catalog_data: 
+  mongodb_contact_support_data: 
+  mongodb_shipping_handling_data: 
+  mongodb_order_management_data: 
+  mysql_authentication_data: 
+  postgres_product_inventory_data: 
+    
+    # docker run --network=my-network -p 4000:4000 \\ # -e REACT_APP_PROFILE_API_HOST=http://profile-management \\ # -e REACT_APP_PRODUCT_API_HOST=http://product-catalog \\ # -e REACT_APP_INVENTORY_API_HOST=http://product-inventory \\ # -e REACT_APP_ORDER_API_HOST=http://order-management \\ # -e REACT_APP_SHIPPING_API_HOST=http://shipping-and-handling \\ # -e REACT_APP_CONTACT_API_HOST=http://contact-support-team \\ # --name ecommerce-ui rslim087/ecommerce-ui # docker run -p 8080:8080 -e MONGO_URI=<mongo_uri> shipping-and-handling # docker run -p 3003:3003 -e MYSQL_HOST=<mysql_host> -e MYSQL_PORT=<mysql_port> -e MYSQL_USER=<mysql_user> -e MYSQL_PASSWORD=<mysql_password> -e MYSQL_DATABASE=<mysql_database> authentication-microservice # docker run -p 3002:3002 -e POSTGRES_HOST=<postgres_host> -e POSTGRES_PORT=<postgres_port> -e POSTGRES_DB=<postgres_db> -e POSTGRES_USER=<postgres_user> -e POSTGRES_PASSWORD=<postgres_password> product-inventory-microservice # docker run -p 8000:8000 -e MONGODB_HOST=<mongo_host> -e MONGODB_PORT=<mongo_port> -e MONGODB_DATABASE=<mongo_database> contact-support-microservice # docker run -p 3001:3001 -e MONGODB_HOST=<mongo_host> -e MONGODB_PORT=<mongo_port> -e MONGODB_DATABASE=<mongo_database> product-catalog-microservice # docker run --network my-network \ # -e PRODUCT_INVENTORY_API_HOST=http://product-inventory \ # -e PRODUCT_CATALOG_API_HOST=http://product-catalog \ # -e SHIPPING_HANDLING_API_HOST=http://shipping-and-handling \ # -e SPRING_DATA_MONGODB_URI=mongodb://host:27017/name \ # -e SPRING_DATA_MONGODB_DATABASE=order_management \ # -p 9090:9090 --name order-management rslim087/order-management
 
