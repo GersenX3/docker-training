@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  contact-support-team:
+    image: gersenx3/contact-support-team:latest
+    ports:
+      - "8000:8000"
+    build: ./contact-support-team
+  
+  product-inventory:
+    image: gersenx3/product-inventory:latest
+    ports:
+      - "3002:3002"
+    build: ./product-inventory
+  
+  product-catalog:
+    image: gersenx3/product-catalog:latest
+    ports:
+      - "3001:3001"
+    build: ./product-catalog
+  
+  shipping-and-handling:
+    image: gersenx3/shipping-and-handling:latest
+    ports:
+      - "8080:8080"
+    build: ./shipping-and-handling
+  
+  profile-management:
+    image: gersenx3/profile-management:latest
+    ports:
+      - "3003:3003"
+    build: ./profile-management
+  
+  order-management:
+    image: gersenx3/order-management:latest
+    ports:
+      - "9090:9090"
+    build: ./order-management
+    depends_on:
+      - product-inventory
+      - product-catalog
+      - shipping-and-handling
+      - profile-management
+    environment:
+      - PRODUCT_INVENTORY_API_HOST=http://product-inventory
+      - PRODUCT_CATALOG_API_HOST=http://product-catalog
+      - SHIPPING_HANDLING_API_HOST=http://shipping-and-handling
+  
+  ecommerce-ui:
+    image: gersenx3/ecommerce-ui:latest
+    ports:
+      - "4000:4000"
+    build: ./ecommerce-ui
+    depends_on:
+      - order-management
+      - product-catalog
+      - profile-management
+      - contact-support-team
+    environment:
+      - REACT_APP_PROFILE_API_HOST=http://profile-management
+      - REACT_APP_PRODUCT_API_HOST=http://product-catalog
+      - REACT_APP_INVENTORY_API_HOST=http://product-inventory
+      - REACT_APP_ORDER_API_HOST=http://order-management
+      - REACT_APP_SHIPPING_API_HOST=http://shipping-and-handling
+      - REACT_APP_CONTACT_API_HOST=http://contact-support-team

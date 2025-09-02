@@ -1,7 +1,7 @@
 version: '3'
 services:
   flask-app:
-    image: rslim087/grade-submission-portal
+    image: gersenx3/grade-submission-portal:1.0.0
     container_name: flask-app
     ports:
       - "5001:5001"
@@ -11,7 +11,25 @@ services:
       - node-server
 
   node-server:
-    image: rslim087/grade-submission-api:2.0.0
+    image: gersenx3/grade-submission-api:1.0.0
     container_name: node-server
     ports:
       - "3000:3000"
+    environment:
+      - DB_HOST=mongo-db
+      - DB_PORT=27017
+      - DB_NAME=grade_db
+    depends_on:
+      - mongo
+  
+  mongo:
+    image: mongo:latest
+    container_name: mongo-db
+    environment:
+      - MONGO_INITDB_DATABASE=grade_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+volumes:
+  mongo-data:
